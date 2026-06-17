@@ -7,19 +7,21 @@ name = "deep-tournament-selection"
 version = "0.1.0"
 description = "Reference implementation of 'Deep Tournament Selection for Genetic Algorithms' (Shem-Tov, Edri, Elyasaf) — a learned, RL-trained selection operator for EC-KitY."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = { text = "BSD-3-Clause" }
 authors = [
     { name = "Eliad Shem-Tov" },
     { name = "Ron Edri" },
     { name = "Achiya Elyasaf" },
 ]
+# Lower bounds are the versions we developed and ran the paper experiments with
+# (Python 3.11–3.14; CPU on macOS and CUDA on the cluster). Newer releases work too.
 dependencies = [
-    "eckity",
-    "torch",
-    "numpy",
-    "scipy",      # required by eckity at import time (fp_selection uses scipy.special.softmax)
-    "overrides",
+    "eckity>=0.4.1",
+    "torch>=2.10.0",
+    "numpy>=2.3.5",
+    "scipy>=1.13.0",   # required by eckity at import time (fp_selection uses scipy.special.softmax)
+    "overrides>=7.7.0",
 ]
 
 [tool.setuptools.packages.find]
