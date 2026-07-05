@@ -1,8 +1,5 @@
-# Versions we developed and ran the paper experiments with (Python 3.11–3.14).
-# Lower bounds, so newer compatible releases install fine; for torch on a GPU
-# install the CUDA build that matches your driver (see https://pytorch.org).
-eckity>=0.4.1
-torch>=2.10.0
-numpy>=2.3.5
-scipy>=1.13.0
+eckity~=0.4.1
+numpy>=2.0.2
 overrides>=7.7.0
+scipy>=1.13.0
+torch>=2.7.1

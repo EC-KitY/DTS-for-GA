@@ -5,8 +5,11 @@ __pycache__/
 build/
 dist/
 .venv/
+.uv-cache/
 venv/
 .idea/
 .vscode/
 .DS_Store
 runs/
+.pytest_cache/
+.ruff_cache/
