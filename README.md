@@ -1,8 +1,12 @@
-# Deep Tournament Selection for EC-KitY
+# Deep Tournament Selection (DTS) for Genetic Algorithms
 
-`eckity-dts` provides Deep Tournament Selection (DTS), a learned selection operator for genetic algorithms built on [EC-KitY](https://github.com/EC-KitY/EC-KitY).
+Implementation of the paper **"Deep Tournament Selection for Genetic Algorithms"**
+(Eliad Shem-Tov, Ron Edri, Achiya Elyasaf — Ben-Gurion University of the Negev).
+📄 **Paper:** _link coming soon_.
 
-DTS uses a Transformer encoder and a self-attention pointer network trained online with REINFORCE. It was introduced in **“Deep Tournament Selection for Genetic Algorithms”** by Eliad Shem-Tov, Ron Edri, and Achiya Elyasaf. The paper has not yet been published; a formal citation will be added when available.
+<p align="center">
+  <img src="images/dts_arch.png" alt="Deep Tournament Selection architecture" width="800">
+</p>
 
 ## Installation
 
