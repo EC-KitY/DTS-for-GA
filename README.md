@@ -1,144 +1,136 @@
-# Deep Tournament Selection (DTS) for Genetic Algorithms
+# Deep Tournament Selection for EC-KitY
 
-Implementation of the paper **"Deep Tournament Selection for Genetic Algorithms"**
-(Eliad Shem-Tov, Ron Edri, Achiya Elyasaf — Ben-Gurion University of the Negev).
-📄 **Paper:** _link coming soon_.
+`eckity-dts` provides Deep Tournament Selection (DTS), a learned selection operator for genetic algorithms built on [EC-KitY](https://github.com/EC-KitY/EC-KitY).
 
-Implemented as EC-KitY adapter (`selection/eckity_adapter.py`).
+DTS uses a Transformer encoder and a self-attention pointer network trained online with REINFORCE. It was introduced in **“Deep Tournament Selection for Genetic Algorithms”** by Eliad Shem-Tov, Ron Edri, and Achiya Elyasaf. The paper has not yet been published; a formal citation will be added when available.
 
-<p align="center">
-  <img src="images/dts_arch.png" alt="Deep Tournament Selection architecture" width="800">
-</p>
-
-## Repository layout
-
-```
-deep_tournament_selection/
-  selection/            # DTS operator + EC-KitY adapter + the neural networks
-    eckity_adapter.py   #   DeepTournamentSelection(SelectionMethod)  <-- the glue
-    dts_policy.py, population_to_vec_transformer.py, self_attention_pointer.py, ...
-  caching_evaluator.py  # persistent fitness cache (ports the original GA's fitness_dict)
-  problems/             # EC-KitY evaluators + loaders + custom operators + bundled instances
-    tsp.py, graph_coloring.py, set_cover.py, operators.py, data/
-  experiments/          # per-problem CLI runners + shared helpers
-    tsp.py, graph_coloring.py, set_cover.py, common.py, runner_utils.py
-  runners/              # notebook-style step-by-step scripts (edit params, no CLI)
-    tsp.py, graph_coloring.py, set_cover.py, custom_runner.py
-  config.py             # paper hyperparameters
-  logging_utils.py      # per-generation JSON statistics
-run_experiments.py      # single entry point to sweep all problems x instances x runs
-figures/                # fitness / diversity plots from the paper
-images/                 # architecture diagrams
-```
-
-## Benchmark domains from the paper
-
-| Domain             | Encoding                          | Instances                     |
-| ------------------ | --------------------------------- | ----------------------------- |
-| **Graph Coloring** | integer vector (color per vertex) | DIMACS, 96–450 vertices       |
-| **Set Cover**      | bit vector (subset selected)      | OR-Library, 1000/2000 subsets |
-| **TSP**            | permutation (tour order)          | TSPLIB, 48–1291 cities        |
-
-
-All are framed as maximization (fitness = negated cost), matching DTS. Instance files are bundled
-under `deep_tournament_selection/problems/data/`.
-
-## Install
+## Installation
 
 ```bash
-pip install -e .          # or: pip install -r requirements.txt
-```
-Requires Python 3.9+, PyTorch, numpy, eckity, overrides.
-
-## Usage
-
-Each problem has its own runner; swap DTS for the tournament baseline with `--selection tournament`.
-Defaults follow the paper (pop 100, 6000 gens for GC/SC, 1000 for TSP); use flags for a quick run:
-
-```bash
-# quick single-instance runs
-python -m deep_tournament_selection.experiments.graph_coloring --instance queen8_12.col.txt --generations 200
-python -m deep_tournament_selection.experiments.set_cover      --instance scp41.txt        --generations 200
-python -m deep_tournament_selection.experiments.tsp            --instance att48.tsp         --generations 200
-
-# baseline comparison on the same setup
-python -m deep_tournament_selection.experiments.tsp --instance att48.tsp --generations 200 --selection tournament
-
-# sweep everything (all problems by default; paper protocol uses --runs 15)
-python run_experiments.py --selection both --runs 3 --generations 500
+pip install eckity-dts
 ```
 
-Common flags: `--instance <file|all>`, `--selection dts|tournament`, `--population-size`,
-`--generations`, `--runs`, `--crossover-prob`, `--mutation-prob`, `--output`, `--device`, `--quiet`,
-`--no-diversity`.
-
-**Results are saved locally** by the `FileLogger`, one JSON per run under `--output` (default
-`runs/`):
-
-```
-runs/<problem>/<instance>/<selection>/run_<k>.json   # per-generation metrics
-runs/summary.csv                                      # best-of-run table (run_experiments.py only)
-```
-
-Each `run_<k>.json` holds per-generation arrays: `mean`, `std`, `median`, `max` (best), `min`
-(worst), `time` (seconds/generation), and `population_diversity` (domain-specific; disable with
-`--no-diversity`).
-
-### Using DTS in your own EC-KitY experiment
+## Public API
 
 ```python
-from deep_tournament_selection.experiments.common import build_dts_operator
+from eckity_dts import CachingEvaluator, DeepTournamentSelection, DTSPolicy
+```
 
-dts = build_dts_operator(population_size=100, vocab_size=2)  # vocab_size = max gene value + 1
-# ... inside your Subpopulation:
+## Constructing DTS
+
+The policy combines a population encoder with a pointer network:
+
+```python
+from eckity_dts import DeepTournamentSelection, DTSPolicy
+from deep_tournament_selection.selection.population_to_vec_transformer import (
+    PopulationToVecTransformer,
+)
+from deep_tournament_selection.selection.self_attention_pointer import (
+    SelfAttentionPointer,
+)
+
+population_size = 100
+vocab_size = 2  # maximum gene value + 1
+
+encoder = PopulationToVecTransformer(
+    vocab_size=vocab_size,
+    emb_dim=32,
+    latent_dim=32,
+    n_heads=4,
+    n_layers=2,
+    dim_feedforward=256,
+    max_pointers=population_size,
+)
+
+pointer = SelfAttentionPointer(
+    pointer_len=population_size,
+    d_model=32,
+)
+
+policy = DTSPolicy(
+    pop_to_vec_transformer=encoder,
+    pointer_transformer=pointer,
+    device="cpu",
+    train_every_n_gens=10,
+    learning_rate=2e-3,
+    final_lr=1e-3,
+    epsilon_greedy=1.0,
+    epsilon_greedy_decay=0.999,
+    min_epsilon=0.2,
+)
+
+dts = DeepTournamentSelection(policy, higher_is_better=True)
+```
+
+Use it as the EC-KitY selection method:
+
+```python
 selection_methods=[(dts, 1)]
 ```
 
-`selection_methods` is a list of `(method, probability)` pairs — the probability is the share of
-the next generation that method produces (they sum to 1 across methods). With a single method,
-`(dts, 1)` simply means DTS performs **100%** of the selection.
+Important parameters:
 
-### Step-by-step runners
+- `population_size` determines the rank-embedding and pointer-table capacities.
+- `vocab_size` is the maximum integer gene value plus one.
+- `train_every_n_gens` controls how often accumulated trajectories train the policy.
+- `epsilon_greedy` and its decay control teacher-forced tournament selection versus learned selection.
+- `custom_reward_function`, when supplied, receives current fitness, previous fitness, and population arrays.
+- `device` can be `"cpu"` or `"cuda"` when a compatible PyTorch installation is available.
 
-`deep_tournament_selection/runners/` holds notebook-style scripts: set the parameters at the top,
-then run the file (or step through the blocks in an editor) — no CLI flags. They assemble the whole
-pipeline explicitly, so you can tweak any single component in place.
+## Fitness caching
 
-```bash
-python -m deep_tournament_selection.runners.graph_coloring   # or set_cover / tsp
-```
-
-`runners/custom_runner.py` is a **bring-your-own-problem template**: plug in (A) an evaluator (your
-fitness function), (B) an encoding (creator + operators), and (C) `vocab_size`, and DTS runs on it —
-it ships wired to a dummy OneMax problem to show the shape. Optionally (D) set `REWARD_FN` to a
-custom reward `f(cur_gen_fitness, prev_gen_fitness, population) -> float` (e.g.
-`selection.custom_reward.custom_reward`) to change how DTS itself is trained.
-
-## Fitness cache
-
-EC-KitY re-evaluates every individual every generation. To preserve the original GA's
-cross-generation fitness cache (skip recomputing already-scored genotypes — elites, unchanged
-clones), wrap your evaluator in `CachingEvaluator` (the runners do this by default):
+EC-KitY may evaluate unchanged vectors again across generations. `CachingEvaluator` avoids recomputing fitness for vectors it has already seen:
 
 ```python
-from deep_tournament_selection import CachingEvaluator
+from eckity_dts import CachingEvaluator
+
 evaluator = CachingEvaluator(MyEvaluator())
-print(evaluator.cache_stats())   # {'hits': ..., 'misses': ..., 'hit_rate': ...}
+print(evaluator.cache_stats())
 ```
 
-## Results figures
+## Compatibility
 
-The paper's fitness and population-diversity plots are in [`figures/`](figures/)
-(`fitness_graph_dns_all_domains.pdf` and `hamming_distance_all_domains.pdf`).
+- Python 3.9 or newer
+- EC-KitY 0.4.x
+- NumPy 2.0.2 or newer
+- SciPy 1.13.0 or newer
+- PyTorch 2.7.1 or newer
+- overrides 7.7.0 or newer
 
-## Citation
+These bounds are compatible with `eckity-dnc`, `eckity-bert-ga`, and `eckity-bert-gp`. None of the operator packages depends directly on another operator package.
 
-> **Note:** the paper has not been published yet. A citation (BibTeX) will be added here once it is
-> available.
+## Research repository
 
-Paper: *Deep Tournament Selection for Genetic Algorithms* — Eliad Shem-Tov, Ron Edri, Achiya Elyasaf
-(Ben-Gurion University of the Negev).
+The repository contains the full paper experiments for Graph Coloring, Set Cover, and TSP, together with benchmark instances, notebook-style runners, and result figures. These research resources are not included in the `eckity-dts` wheel.
+
+For repository development:
+
+```bash
+uv sync --extra dev --resolution lowest-direct
+uv run pytest
+```
+
+Experiment entry points remain available from a source checkout:
+
+```bash
+python -m deep_tournament_selection.experiments.graph_coloring --instance queen8_12.col.txt --generations 200
+python -m deep_tournament_selection.experiments.set_cover --instance scp41.txt --generations 200
+python -m deep_tournament_selection.experiments.tsp --instance att48.tsp --generations 200
+python run_experiments.py --selection both --runs 3 --generations 500
+```
+
+Results are written under `runs/`. Paper figures are stored under `figures/`, and the architecture diagram is under `images/`.
+
+## Development and release
+
+```bash
+uv run pytest
+uv run ruff check .
+uv build
+```
+
+Release preparation and manual PyPI upload commands are documented in [`RELEASING.md`](RELEASING.md).
 
 ## License
 
-Released under the **BSD 3-Clause License** — see [LICENSE](LICENSE).
+This project is licensed under the BSD 3-Clause License. See [`LICENSE`](LICENSE).
