@@ -9,12 +9,11 @@ class ElitistBreeder(SimpleBreeder):
 
             num_elites = subpopulation.n_elite
             if num_elites > 0:
-                ElitismSelection(
-                    num_elites=num_elites,
-                    higher_is_better=subpopulation.higher_is_better,
-                ).apply_operator((subpopulation.individuals, nextgen_population))
+                ElitismSelection(num_elites=num_elites).apply_operator(
+                    (subpopulation.individuals, nextgen_population)
+                )
 
-            selection = subpopulation.get_selection_methods()[0][0]
+            selection = subpopulation.get_selection_methods()[0]
             nextgen_population = selection.select(
                 subpopulation.individuals, nextgen_population
             )

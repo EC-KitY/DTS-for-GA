@@ -45,7 +45,7 @@ def make_selection(
         )
     elif kind == "tournament":
         t = dts_cfg.tournament_size if dts_cfg is not None else 5
-        return TournamentSelection(tournament_size=t, higher_is_better=True)
+        return TournamentSelection(tournament_size=t)
     raise ValueError(f"unknown selection kind: {kind}")
 
 
@@ -85,7 +85,7 @@ def run_one(
             higher_is_better=True,
             elitism_rate=elitism / population_size,
             operators_sequence=operators,
-            selection_methods=[(selection, 1)],
+            selection_methods=[selection],
         ),
         breeder=ElitistBreeder(),
         max_workers=max_workers,

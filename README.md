@@ -63,13 +63,13 @@ policy = DTSPolicy(
     min_epsilon=0.2,
 )
 
-dts = DeepTournamentSelection(policy, higher_is_better=True)
+dts = DeepTournamentSelection(policy)
 ```
 
 Use it as the EC-KitY selection method:
 
 ```python
-selection_methods=[(dts, 1)]
+selection_methods=[dts]
 ```
 
 Important parameters:

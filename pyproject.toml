@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eckity-dts"
-version = "0.1.0"
+version = "0.1.1"
 description = "Deep Tournament Selection operator for EC-KitY genetic algorithms"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -26,7 +26,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "eckity~=0.4.1",
+    "eckity~=0.4.2",
     "numpy>=2.0.2",
     "overrides>=7.7.0",
     "scipy>=1.13.0",

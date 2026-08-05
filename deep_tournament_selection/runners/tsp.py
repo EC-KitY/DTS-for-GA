@@ -70,7 +70,7 @@ algo = SimpleEvolution(
         higher_is_better=True,
         elitism_rate=ELITISM / POPULATION_SIZE,
         operators_sequence=operators,
-        selection_methods=[(selection, 1)],
+        selection_methods=[selection],
     ),
     breeder=ElitistBreeder(),
     max_generation=GENERATIONS,
